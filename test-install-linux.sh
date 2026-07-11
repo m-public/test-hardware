@@ -96,8 +96,13 @@ elif command -v wget >/dev/null 2>&1; then
 fi
 
 VENV_PY="$RUN_DIR/.local/share/DepzCameraViewer/venv/bin/python"
-echo "[runner] running autoinstaller (hardware=auto)…" >&2
-sh "$AUTOINSTALLER_SCRIPT" --hardware auto >>"$LOG" 2>&1
+echo "[runner] autoinstaller URL: $AUTOINSTALLER_URL" >&2
+echo "[runner] running autoinstaller (hardware=auto) — forwarding output:" >&2
+echo "──────────────────────────────────────────────────────────" >&2
+sh "$AUTOINSTALLER_SCRIPT" --hardware auto 2>&1 | tee -a "$LOG" >&2
+AUTOINSTALLER_RC=$?
+echo "──────────────────────────────────────────────────────────" >&2
+echo "[runner] autoinstaller exited with code $AUTOINSTALLER_RC" >&2
 if [ ! -x "$VENV_PY" ]; then
   echo "[runner] autoinstaller did not produce venv python at $VENV_PY" >&2
   echo "[runner] see $LOG" >&2

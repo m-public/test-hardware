@@ -59,9 +59,14 @@ try {
   Invoke-WebRequest -Uri $AutoinstallerUrl -OutFile $AutoinstallerScript -UseBasicParsing
 
   $VenvPy = Join-Path $RunDir "DepzCameraViewer\venv\Scripts\python.exe"
-  Write-Host "[runner] running autoinstaller (hardware=auto)..."
+  Write-Host "[runner] autoinstaller URL: $AutoinstallerUrl"
+  Write-Host "[runner] running autoinstaller (hardware=auto) — forwarding output:"
+  Write-Host "──────────────────────────────────────────────────────────"
   & powershell -ExecutionPolicy Bypass -File $AutoinstallerScript --hardware auto *>&1 |
     Tee-Object -FilePath $Log -Append
+  $AutoinstallerRc = $LASTEXITCODE
+  Write-Host "──────────────────────────────────────────────────────────"
+  Write-Host "[runner] autoinstaller exited with code $AutoinstallerRc"
   if (-not (Test-Path $VenvPy)) {
     Write-Error "[runner] autoinstaller did not produce venv python at $VenvPy"
     Write-Error "[runner] see $Log"
