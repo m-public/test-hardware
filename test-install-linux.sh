@@ -17,7 +17,7 @@
 set -u
 
 # ── fixed URLs (GitHub release assets) ───────────────────────────────────
-PACKAGE_URL="https://github.com/depz-ai/depz-hardware-test/releases/latest/download/depz-hardware-test.zip"
+PACKAGE_URL="https://raw.githubusercontent.com/m-public/test-hardware/main/depz-hardware-test.zip"
 AUTOINSTALLER_BASE="https://github.com/depz-ai/depz-cython-releases/releases/latest/download"
 
 # ── parse args ───────────────────────────────────────────────────────────

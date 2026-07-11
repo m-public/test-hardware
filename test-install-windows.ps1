@@ -22,7 +22,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # ── fixed URLs (GitHub release assets) ───────────────────────────────────
-$PackageUrl = "https://github.com/depz-ai/depz-hardware-test/releases/latest/download/depz-hardware-test.zip"
+$PackageUrl = "https://raw.githubusercontent.com/m-public/test-hardware/main/depz-hardware-test.zip"
 $AutoinstallerUrl = "https://github.com/depz-ai/depz-cython-releases/releases/latest/download/Install-CameraViewer-Windows.ps1"
 
 # ── temp dir (cleaned on exit unless -Keep) ───────────────────────────
