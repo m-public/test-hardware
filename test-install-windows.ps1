@@ -99,9 +99,14 @@ try {
   & $VenvPy -m depz_hardware_test @extraArgs *>&1 | Tee-Object -FilePath $Log -Append
   $rc = $LASTEXITCODE
 
-  # ── step 5: (deferred) submit transcript ────────────────────────────
-  Write-Host "[runner] transcript: $Transcript"
-  Write-Host "[runner] (transcript submission is deferred - not yet implemented)"
+  # ── step 5: save transcript to the current directory + (deferred) submit ──
+  $CwdTranscript = "depz-hardware-transcript.json"
+  if (Test-Path $Transcript) {
+    Copy-Item $Transcript -Destination $CwdTranscript -Force
+    Write-Host "[runner] transcript saved to: $CwdTranscript (in current dir)"
+  }
+  # Gist submission needs a GitHub token (not available). Transcript left in cwd.
+  Write-Host "[runner] (transcript submission deferred - JSON saved locally instead)"
 
   # ── step 6: print transcript JSON to stdout ──────────────────────────
   if (Test-Path $Transcript) {

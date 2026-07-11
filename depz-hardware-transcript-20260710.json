@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "run_id": "20260710-200228-boto-MS-7C91",
+  "timestamp_utc": "2026-07-10T18:02:28.445518+00:00",
+  "system": {
+    "os": "linux",
+    "arch": "x86_64",
+    "machine": "x86_64",
+    "libc": "manylinux",
+    "hostname": "boto-MS-7C91",
+    "python_version": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]",
+    "python_executable": "/tmp/ht-json-run/venv/bin/python"
+  },
+  "computational_hardware": [
+    {
+      "vendor": "nvidia",
+      "kind": "dgpu",
+      "raw": ""
+    }
+  ],
+  "installed_software": [
+    {
+      "name": "depz-camera-sdk",
+      "version": "0.2.0"
+    },
+    {
+      "name": "depz-hardware-test",
+      "version": "0.1.0"
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.26.0"
+    },
+    {
+      "name": "openvino",
+      "version": "2026.2.1"
+    },
+    {
+      "name": "opencv-python",
+      "version": "4.13.0.92"
+    },
+    {
+      "name": "numpy",
+      "version": "2.4.6"
+    }
+  ],
+  "system_drivers": {
+    "nvidia_driver": "NVRM version: NVIDIA UNIX x86_64 Kernel Module  575.64.03  Wed Jun 25 18:40:52 UTC 2025",
+    "nvidia-smi": "NVIDIA GeForce RTX 3090",
+    "intel-opencl-icd": "(not installed)",
+    "/dev/dri render nodes": "renderD128",
+    "cuda_libs": {
+      "libcublasLt.so.12": {
+        "loadable": true,
+        "detail": "loadable"
+      },
+      "libcudnn.so.9": {
+        "loadable": false,
+        "detail": "libcudnn.so.9: cannot open shared object file: No such file or directory"
+      }
+    },
+    "rocm_libs": {
+      "libamdhip64.so": {
+        "loadable": false,
+        "detail": "libamdhip64.so: cannot open shared object file: No such file or directory"
+      },
+      "libMIOpen.so": {
+        "loadable": false,
+        "detail": "libMIOpen.so: cannot open shared object file: No such file or directory"
+      }
+    },
+    "migraphx": {
+      "loadable": false,
+      "detail": "(not probed)"
+    }
+  },
+  "engines": {
+    "available": [
+      {
+        "slug": "openvino-CPU",
+        "kind": "openvino",
+        "device": "CPU",
+        "priority_rank": 0,
+        "vendor": "AMD",
+        "hw_kind": "cpu",
+        "label": "AMD Ryzen 5 3600XT 6-Core Processor             (OpenVINO)"
+      },
+      {
+        "slug": "onnx-cpu",
+        "kind": "onnx",
+        "device": "cpu",
+        "priority_rank": 0,
+        "vendor": "Generic",
+        "hw_kind": "cpu",
+        "label": "CPU (ONNX Runtime)"
+      }
+    ],
+    "recommended": "openvino-CPU",
+    "hidden_by_sdk": [
+      {
+        "device": "GPU",
+        "name": "NVIDIA GeForce RTX 3090 (dGPU)",
+        "reason": "OpenVINO's GPU plugin only compiles for Intel hardware; selecting a non-Intel GPU would silently fall back to CPU. Use onnx-cuda / onnx-rocm for real acceleration on it."
+      }
+    ],
+    "raw_openvino_devices": [
+      {
+        "device": "CPU",
+        "name": "AMD Ryzen 5 3600XT 6-Core Processor            "
+      },
+      {
+        "device": "GPU",
+        "name": "NVIDIA GeForce RTX 3090 (dGPU)"
+      }
+    ]
+  },
+  "pipeline_tests": [
+    {
+      "engine_slug": "openvino-CPU",
+      "inference": "lightstereo/s-sceneflow-opt-256x512",
+      "mkv_path": "/tmp/ht-json-run/pkg/depz-hardware-test/sample.mkv",
+      "status": "crash",
+      "frames_decoded": 0,
+      "wall_fps": null,
+      "metrics": {},
+      "error_type": "SIGSEGV",
+      "error_msg": "child process exited with code -11 (SIGSEGV) \u2014 native crash during inference",
+      "traceback": null
+    },
+    {
+      "engine_slug": "onnx-cpu",
+      "inference": "lightstereo/s-sceneflow-opt-256x512",
+      "mkv_path": "/tmp/ht-json-run/pkg/depz-hardware-test/sample.mkv",
+      "status": "ok",
+      "frames_decoded": 30,
+      "wall_fps": 10.02,
+      "metrics": {
+        "camera_fps": 30.10105121096436,
+        "inference_fps": 9.60670112100086,
+        "camera_drops": 62,
+        "output_drops": 0,
+        "camera_drops_per_s": 19.85383220023296,
+        "output_drops_per_s": 0.0,
+        "decode_p50_us": 6864,
+        "rectify_p50_us": 4419,
+        "inference_p50_us": 181440,
+        "inference_p95_us": 212847,
+        "postprocess_p50_us": 315,
+        "worker_loop_p50_us": 95942,
+        "worker_loop_p95_us": 114065,
+        "inference_in_flight": 1
+      },
+      "error_type": null,
+      "error_msg": null,
+      "traceback": null
+    }
+  ],
+  "pipeline_note": null,
+  "inference_used": "lightstereo/s-sceneflow-opt-256x512",
+  "summary": {
+    "total_engines": 2,
+    "ok": 1,
+    "failed": 0,
+    "no_engines": false,
+    "no_mk": false
+  }
+}

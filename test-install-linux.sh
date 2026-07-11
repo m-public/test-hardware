@@ -128,9 +128,14 @@ echo "[runner] running python -m depz_hardware_test…" >&2
 "$VENV_PY" -m depz_hardware_test $EXTRA_FLAGS --out "$TRANSCRIPT" --summary >>"$LOG" 2>&1
 RC=$?
 
-# ── step 5: (deferred) submit transcript ───────────────────────────────
-echo "[runner] transcript: $TRANSCRIPT" >&2
-echo "[runner] (transcript submission is deferred — not yet implemented)" >&2
+# ── step 5: save transcript to the current directory + (deferred) submit ───
+CWD_TRANSCRIPT="depz-hardware-transcript.json"
+if [ -f "$TRANSCRIPT" ]; then
+  cp "$TRANSCRIPT" "$CWD_TRANSCRIPT"
+  echo "[runner] transcript saved to: $CWD_TRANSCRIPT (in current dir)" >&2
+fi
+# Gist submission needs a GitHub token (not available). Transcript left in cwd.
+echo "[runner] (transcript submission deferred — JSON saved locally instead)" >&2
 
 # ── step 6: print transcript JSON to stdout ────────────────────────────
 if [ -f "$TRANSCRIPT" ]; then
