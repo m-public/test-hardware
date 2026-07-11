@@ -12,31 +12,67 @@
 # Nothing touches ~. No source/repo assumed on the host.
 #
 #   Options:
+#     --out-dir DIR   Write transcript JSON to DIR (default: launch dir).
 #     --keep          Retain the temp dir + transcript for debugging.
 #     --no-pipeline   Probe only; skip the pipeline smoke run.
 set -u
 
+# Capture the launch dir *now* — before anything cd's or exports HOME —
+# so the transcript lands where the user actually ran us, not in some scratch
+# workdir a parent process may have cd'd into.
+LAUNCH_DIR="$(pwd)"
+
 # ── fixed URLs (GitHub release assets) ───────────────────────────────────
 PACKAGE_URL="https://raw.githubusercontent.com/m-public/test-hardware/main/depz-hardware-test.zip"
 AUTOINSTALLER_URL="https://github.com/depz-ai/depz-cython-releases/releases/latest/download/Install-CameraViewer-macOS.sh"
+RUNNER_URL="https://raw.githubusercontent.com/m-public/test-hardware/main/test-install-macos.sh"
 
 # ── parse args ───────────────────────────────────────────────────────────
 KEEP=0
 NO_PIPELINE=0
+OUT_DIR="$LAUNCH_DIR"
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep) KEEP=1 ;;
     --no-pipeline) NO_PIPELINE=1 ;;
+    --out-dir) shift; OUT_DIR="$1" ;;
+    --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
+    -h|--help)
+      echo "Usage: sh test-install-macos.sh [--keep] [--no-pipeline] [--out-dir DIR]" >&2
+      echo "  --out-dir DIR   Write transcript JSON to DIR (default: launch dir = $LAUNCH_DIR)" >&2
+      echo "  --keep          Retain the temp dir + logs for debugging" >&2
+      echo "  --no-pipeline   Probe only; skip the pipeline smoke run" >&2
+      exit 0 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
   shift
 done
 
+# Resolve --out-dir to an absolute, existing, writable path. The python probe
+# writes here directly via --out, so this is where the transcript really lands.
+case "$OUT_DIR" in
+  /*) : ;;
+  *) OUT_DIR="$LAUNCH_DIR/$OUT_DIR" ;;
+esac
+if [ ! -d "$OUT_DIR" ]; then
+  echo "[runner] --out-dir does not exist: $OUT_DIR" >&2
+  exit 2
+fi
+if ! ( : > "$OUT_DIR/.depz-ht-write-probe" ) 2>/dev/null; then
+  echo "[runner] --out-dir not writable: $OUT_DIR" >&2
+  exit 2
+fi
+rm -f "$OUT_DIR/.depz-ht-write-probe"
+TRANSCRIPT="$OUT_DIR/depz-hardware-transcript.json"
+echo "[runner] launch dir:    $LAUNCH_DIR" >&2
+echo "[runner] transcript ->  $TRANSCRIPT" >&2
+echo "[runner] runner URL:    $RUNNER_URL" >&2
+echo "[runner] package URL:   $PACKAGE_URL" >&2
+
 # ── temp dir (cleaned on exit unless --keep) ───────────────────────────
 RUN_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t depz-ht)"
 export HOME="$RUN_DIR"          # redirects autoinstaller's APP_DIR + uv caches
 PKG_DIR="$RUN_DIR/pkg"
-TRANSCRIPT="$RUN_DIR/transcript.json"
 LOG="$RUN_DIR/install-test.log"
 : > "$LOG"
 
@@ -126,21 +162,21 @@ echo "[runner] running python -m depz_hardware_test…" >&2
 "$VENV_PY" -m depz_hardware_test $EXTRA_FLAGS --out "$TRANSCRIPT" --summary >>"$LOG" 2>&1
 RC=$?
 
-# ── step 5: save transcript to the current directory + (deferred) submit ───
-CWD_TRANSCRIPT="depz-hardware-transcript.json"
+# ── step 5: stamp runner provenance into the transcript JSON ───────────
+# The python module doesn't know which autoinstaller/runner ran it, so we
+# inject a `runner` block here. The transcript already lives at $TRANSCRIPT
+# (the user's --out-dir), so this both records the URLs and is the final copy.
 if [ -f "$TRANSCRIPT" ]; then
-  cp "$TRANSCRIPT" "$CWD_TRANSCRIPT"
-  echo "[runner] transcript saved to: $CWD_TRANSCRIPT (in current dir)" >&2
-fi
-# Gist submission needs a GitHub token (not available). Transcript left in cwd.
-echo "[runner] (transcript submission deferred — JSON saved locally instead)" >&2
-
-# ── step 6: print transcript JSON to stdout ────────────────────────────
-if [ -f "$TRANSCRIPT" ]; then
-  cat "$TRANSCRIPT"
+  "$VENV_PY" -c 'import json,sys; p,ai,pkg,run=sys.argv[1:5]; d=json.load(open(p,encoding="utf-8")); d["runner"]={"autoinstaller_url":ai,"package_url":pkg,"runner_url":run}; open(p,"w",encoding="utf-8").write(json.dumps(d,indent=2,default=str))' "$TRANSCRIPT" "$AUTOINSTALLER_URL" "$PACKAGE_URL" "$RUNNER_URL" >>"$LOG" 2>&1 \
+    || echo "[runner] warning: could not stamp provenance into transcript" >&2
+  echo "[runner] transcript saved to: $TRANSCRIPT" >&2
+  echo "[runner] autoinstaller URL: $AUTOINSTALLER_URL" >&2
+  echo "[runner] (transcript submission deferred — JSON saved locally instead)" >&2
 else
   echo "[runner] no transcript produced — see $LOG" >&2
   exit 6
 fi
 
+# ── step 6: print transcript JSON to stdout ────────────────────────────
+cat "$TRANSCRIPT"
 exit $RC

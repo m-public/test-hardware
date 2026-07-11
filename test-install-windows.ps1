@@ -11,12 +11,14 @@
 # Nothing touches the user profile. No source/repo assumed on the host.
 #
 #   Options:
+#     -OutDir DIR    Write transcript JSON to DIR (default: launch dir).
 #     -Keep          Retain the temp dir + transcript for debugging.
 #     -NoPipeline    Probe only; skip the pipeline smoke run.
 [CmdletBinding()]
 param(
   [switch]$Keep,
-  [switch]$NoPipeline
+  [switch]$NoPipeline,
+  [string]$OutDir
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +26,20 @@ $ErrorActionPreference = "Stop"
 # ── fixed URLs (GitHub release assets) ───────────────────────────────────
 $PackageUrl = "https://raw.githubusercontent.com/m-public/test-hardware/main/depz-hardware-test.zip"
 $AutoinstallerUrl = "https://github.com/depz-ai/depz-cython-releases/releases/latest/download/Install-CameraViewer-Windows.ps1"
+$RunnerUrl = "https://raw.githubusercontent.com/m-public/test-hardware/main/test-install-windows.ps1"
+
+# Capture the launch dir *now* — before we redirect LOCALAPPDATA/USERPROFILE —
+# so the transcript lands where the user actually ran us, not in a scratch dir.
+$LaunchDir = (Get-Location).Path
+if (-not $OutDir) { $OutDir = $LaunchDir }
+if (-not (Test-Path $OutDir -PathType Container)) {
+  Write-Error "[runner] -OutDir does not exist: $OutDir"; exit 2
+}
+$Transcript = Join-Path $OutDir "depz-hardware-transcript.json"
+Write-Host "[runner] launch dir:    $LaunchDir"
+Write-Host "[runner] transcript ->  $Transcript"
+Write-Host "[runner] runner URL:    $RunnerUrl"
+Write-Host "[runner] package URL:   $PackageUrl"
 
 # ── temp dir (cleaned on exit unless -Keep) ───────────────────────────
 $RunDir = Join-Path ([System.IO.Path]::GetTempPath()) ("depz-ht-" + [guid]::NewGuid().ToString("N"))
@@ -32,7 +48,6 @@ New-Item -ItemType Directory -Path $RunDir -Force | Out-Null
 $env:LOCALAPPDATA = $RunDir
 $env:USERPROFILE = $RunDir
 $PkgDir = Join-Path $RunDir "pkg"
-$Transcript = Join-Path $RunDir "transcript.json"
 $Log = Join-Path $RunDir "install-test.log"
 "" | Out-File -FilePath $Log
 
@@ -104,23 +119,34 @@ try {
   & $VenvPy -m depz_hardware_test @extraArgs *>&1 | Tee-Object -FilePath $Log -Append
   $rc = $LASTEXITCODE
 
-  # ── step 5: save transcript to the current directory + (deferred) submit ──
-  $CwdTranscript = "depz-hardware-transcript.json"
+  # ── step 5: stamp runner provenance into the transcript JSON ───────────
+  # The python module doesn't know which autoinstaller/runner ran it, so we
+  # inject a `runner` block here. The transcript already lives at $Transcript
+  # (the user's -OutDir), so this both records the URLs and is the final copy.
   if (Test-Path $Transcript) {
-    Copy-Item $Transcript -Destination $CwdTranscript -Force
-    Write-Host "[runner] transcript saved to: $CwdTranscript (in current dir)"
-  }
-  # Gist submission needs a GitHub token (not available). Transcript left in cwd.
-  Write-Host "[runner] (transcript submission deferred - JSON saved locally instead)"
-
-  # ── step 6: print transcript JSON to stdout ──────────────────────────
-  if (Test-Path $Transcript) {
-    Get-Content $Transcript
+    $ProvenancePy = Join-Path $RunDir "stamp_provenance.py"
+    @'
+import json, sys
+p, ai, pkg, run = sys.argv[1:5]
+d = json.load(open(p, encoding='utf-8'))
+d['runner'] = {'autoinstaller_url': ai, 'package_url': pkg, 'runner_url': run}
+open(p, 'w', encoding='utf-8').write(json.dumps(d, indent=2, default=str))
+'@ | Out-File -FilePath $ProvenancePy -Encoding utf8
+    & $VenvPy $ProvenancePy $Transcript $AutoinstallerUrl $PackageUrl $RunnerUrl *>&1 |
+      Tee-Object -FilePath $Log -Append
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "[runner] warning: could not stamp provenance into transcript"
+    }
+    Write-Host "[runner] transcript saved to: $Transcript"
+    Write-Host "[runner] autoinstaller URL: $AutoinstallerUrl"
+    Write-Host "[runner] (transcript submission deferred - JSON saved locally instead)"
   } else {
     Write-Error "[runner] no transcript produced - see $Log"
     exit 6
   }
 
+  # ── step 6: print transcript JSON to stdout ──────────────────────────
+  Get-Content $Transcript
   exit $rc
 }
 finally {
